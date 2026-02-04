@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chatbot Testi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+    body {
+      background-image: url('./og-image.webp');
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .chat-wrapper {
+      background: #ffffff;
+      width: 100%;
+      max-width: 480px;
+      height: 80vh;
+      max-height: 720px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+
+      transition: all 0.4s ease-in-out;
+      opacity: 0;
+      transform: scale(0.9) translateY(20px);
+      pointer-events: none;
+
+      position: relative;
+      z-index: 10;
+    }
+
+    .chat-wrapper.active {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: all;
+    }
+
+    .chat-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid #eee;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-status {
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.7;
+    }
+
+    .chat-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #fafafa;
+    }
+
+    .msg {
+      max-width: 85%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      line-height: 1.35;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: #111;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg.bot {
+      align-self: flex-start;
+      background: #fff;
+      color: #111;
+      border: 1px solid #eee;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-footer {
+      border-top: 1px solid #eee;
+      padding: 10px;
+      display: flex;
+      gap: 8px;
+      background: #fff;
+    }
+
+    .chat-input {
+      flex: 1;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .chat-send {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      background: #111;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .chat-send:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .toggle-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      background-color: #FFFFFF;
+      color: red;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease, background-color 0.3s;
+      z-index: 20;
+    }
+
+    .toggle-btn:hover { transform: scale(1.1); background-color: #000000; }
+    .toggle-btn:active { transform: scale(0.95); }
+
+    .icon-open, .icon-close {
+      position: absolute;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      width: 30px;
+      height: 30px;
+    }
+
+    .chat-open .icon-open { opacity: 0; transform: rotate(90deg); }
+    .chat-open .icon-close { opacity: 1; transform: rotate(0); }
+
+    .icon-close { opacity: 0; transform: rotate(-90deg); }
+  </style>
+</head>
+<body>
+
+  <!-- Chat Kutusu -->
+  <div class="chat-wrapper" id="chatWrapper">
+    <div class="chat-header">
+      <div>Hurra Türkiye Chat</div>
+      <div class="chat-status" id="chatStatus">Hazır</div>
+    </div>
+
+    <div class="chat-body" id="chatBody">
+      <div class="msg bot">Merhaba! Size nasıl yardımcı olabilirim?</div>
+    </div>
+
+    <div class="chat-footer">
+      <input class="chat-input" id="chatInput" placeholder="Mesajınızı yazın..." />
+      <button class="chat-send" id="sendBtn" onclick="sendMessage()">Gönder</button>
+    </div>
+  </div>
+
+  <!-- Sağ Alt Köşedeki Yuvarlak Buton -->
+  <button class="toggle-btn" id="toggleBtn" onclick="toggleChat()">
+    <svg class="icon-open" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+    </svg>
+
+    <svg class="icon-close" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"></path>
+    </svg>
+  </button>
+
+  <script>
+    // ✅ BURAYI DÜZENLE
+    const N8N_WEBHOOK_URL = "https://n8n.e12.com.tr/webhook/hurra-chatbot"; // Production webhook URL
+    const API_KEY = "lingo_chatbot_api_key_060320018426"; // senin belirlediğin gizli token (sadece örnek)
+    // ✅ BURAYI DÜZENLE
+
+    let isLoading =false;
+    // Basit sessionId: aynı tarayıcıda aynı kullanıcıyı tutar
+    const sessionId = (() => {
+      const k = "hurra_session_id";
+      let v = localStorage.getItem(k);
+      if (!v) {
+        v = "sess_" + Math.random().toString(16).slice(2) + "_" + Date.now();
+        localStorage.setItem(k, v);
+      }
+      return v;
+    })();
+
+    function toggleChat() {
+      const wrapper = document.getElementById('chatWrapper');
+      const btn = document.getElementById('toggleBtn');
+      wrapper.classList.toggle('active');
+      btn.classList.toggle('chat-open');
+      if (wrapper.classList.contains("active")) {
+        setTimeout(() => document.getElementById("chatInput")?.focus(), 50);
+      }
+    }
+
+    function addMsg(text, who) {
+      const chatBody = document.getElementById("chatBody");
+      const div = document.createElement("div");
+      div.className = "msg " + who;
+      div.textContent = text;
+      chatBody.appendChild(div);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    function setStatus(s) {
+      document.getElementById("chatStatus").textContent = s;
+    }
+
+    async function sendMessage() {
+      if(isLoading) return;
+      const input = document.getElementById("chatInput");
+      const sendBtn = document.getElementById("sendBtn");
+      const text = (input.value || "").trim();
+      if (!text) return;
+      isLoading = true;
+      addMsg(text, "user");
+      input.value = "";
+      input.disabled = true;
+
+      sendBtn.disabled = true;
+      setStatus("Yanıtlanıyor...");
+
+      try {
+        console.log("Sending request to:", N8N_WEBHOOK_URL);
+        const res = await fetch(N8N_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + API_KEY
+          },
+          body: JSON.stringify({
+            message: text,
+            sessionId: sessionId
+          })
+        });
+
+        console.log("Response status:", res.status);
+
+        if (!res.ok) {
+          // 401 vs 500 vs 404
+          const errText = await res.text().catch(() => "");
+          console.log("Error response:", errText);
+          throw new Error(`HTTP ${res.status} - ${errText || "Request failed"}`);
+        }
+
+        const rawText = await res.text();
+        console.log("Raw response text:", rawText);
+        const data = rawText ? JSON.parse(rawText) : null;
+        console.log("n8n raw response:", JSON.stringify(data, null, 2));
+        // n8n "allIncomingItems" array döndürüyor, ilk elemanı al
+        const item = Array.isArray(data) ? data[0] : data;
+        console.log("Parsed item:", JSON.stringify(item, null, 2));
+        const answer =
+        item?.output ??
+        item?.answer ??
+        item?.text ??
+        "Üzgünüm, şu an yanıt oluşturamadım.";
+
+
+        addMsg(answer, "bot");
+        setStatus("Hazır");
+      } catch (e) {
+        addMsg("Bir hata oluştu. Lütfen tekrar deneyin.", "bot");
+        setStatus("Hurra Türkiye Yapay Zeka Sohbet Botu v1.0");
+        console.error(e);
+      } finally {
+        isLoading = false;
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    }
+
+    // Enter ile gönder
+    document.getElementById("chatInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
+
+</body>
+</html>
