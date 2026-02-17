@@ -1,0 +1,368 @@
+<script>
+(function () {
+  const PROXY_URL = "/inc_chat-proxy.php"; // aynı domain
+
+  function getSessionId() {
+    let sid = localStorage.getItem("hurra_sessionId");
+    if (!sid) {
+      sid = "sess_" + Math.random().toString(36).slice(2) + "_" + Date.now();
+      localStorage.setItem("hurra_sessionId", sid);
+    }
+    return sid;
+  }
+
+  async function postMessage(msg) {
+    const res = await fetch(PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: msg, sessionId: getSessionId() })
+    });
+    const text = await res.text();
+    try { return JSON.parse(text); } catch { return { output: text }; }
+  }
+
+  // sende buton çalışmıyorsa sebep JS error olabilir; bunu görün diye:
+  window.hurraSend = async function(msg) {
+    console.log("Sending to", PROXY_URL);
+    const data = await postMessage(msg);
+    console.log("Response:", data);
+    return data;
+  };
+})();
+</script>
+<!-- Hurra Lingo Chatbot Widget - Bu kodu WordPress sitenize ekleyin -->
+<style>
+#hurra-chat-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+#hurra-chat-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+#hurra-chat-btn svg {
+  width: 28px;
+  height: 28px;
+  fill: white;
+}
+#hurra-chat-box {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 370px;
+  max-width: calc(100vw - 40px);
+  height: 500px;
+  max-height: calc(100vh - 120px);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 99999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+#hurra-chat-box.open { display: flex; }
+#hurra-chat-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 16px 20px;
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#hurra-chat-header span { display: flex; align-items: center; gap: 10px; }
+#hurra-chat-header .status { width: 8px; height: 8px; background: #4ade80; border-radius: 50%; }
+#hurra-chat-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+#hurra-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: #f8fafc;
+}
+.hurra-msg {
+  margin-bottom: 12px;
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+.hurra-msg.bot {
+  background: white;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 4px;
+  margin-right: auto;
+}
+.hurra-msg.user {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-bottom-right-radius: 4px;
+  margin-left: auto;
+}
+.hurra-msg.typing {
+  background: white;
+  border: 1px solid #e2e8f0;
+  color: #94a3b8;
+  font-style: italic;
+}
+#hurra-chat-input-area {
+  padding: 12px 16px;
+  background: white;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 10px;
+}
+#hurra-chat-input {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 12px 18px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+#hurra-chat-input:focus { border-color: #667eea; }
+#hurra-chat-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+#hurra-chat-send:hover { transform: scale(1.05); }
+#hurra-chat-send:disabled { opacity: 0.6; cursor: not-allowed; }
+#hurra-chat-send svg { width: 20px; height: 20px; fill: white; }
+.hurra-payment-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 700;
+  text-decoration: none;
+  background: #22c55e;
+  color: #fff;
+}
+.hurra-payment-btn:hover { filter: brightness(0.95); }
+
+</style>
+
+<button id="hurra-chat-btn" aria-label="Sohbet">
+  <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+</button>
+
+<div id="hurra-chat-box">
+  <div id="hurra-chat-header">
+    <span><span class="status"></span>Hurra Lingo Asistan</span>
+    <button id="hurra-chat-close">&times;</button>
+  </div>
+  <div id="hurra-chat-messages"></div>
+  <div id="hurra-chat-input-area">
+    <input type="text" id="hurra-chat-input" placeholder="Mesajınızı yazın..." autocomplete="off">
+    <button id="hurra-chat-send">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+(function() {
+  const PROXY_URL = "/inc_chat-proxy.php";
+  const chatBtn = document.getElementById("hurra-chat-btn");
+  const chatBox = document.getElementById("hurra-chat-box");
+  const closeBtn = document.getElementById("hurra-chat-close");
+  const messagesDiv = document.getElementById("hurra-chat-messages");
+  const input = document.getElementById("hurra-chat-input");
+  const sendBtn = document.getElementById("hurra-chat-send");
+
+chatBox.classList.add("open");
+
+if (messagesDiv.children.length === 0) {
+  addMessage("Merhaba! Size nasıl yardımcı olabilirim?", "bot");
+}
+  let isOpen = true;
+  let isLoading = false;
+  let paymentButtonShown = false;
+
+
+  function getSessionId() {
+    let sid = localStorage.getItem("hurra_sessionId");
+    if (!sid) {
+      sid = "sess_" + Math.random().toString(36).slice(2) + "_" + Date.now();
+      localStorage.setItem("hurra_sessionId", sid);
+    }
+    return sid;
+  }
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatMessage(text) {
+  if (!text) return "";
+
+  // önce güvenli hale getir
+  text = escapeHtml(text);
+
+  // **kalın** → <strong>kalın</strong>
+  text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+  // satır atlamaları
+  text = text.replace(/\n/g, "<br>");
+
+  return text;
+}
+
+
+
+  function addMessage(text, type) {
+    
+    const div = document.createElement("div");
+    div.className = "hurra-msg " + type;
+    div.innerHTML = formatMessage(text);
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    return div;
+  }
+
+function addPaymentButton(url) {
+  const wrap = document.createElement("div");
+  wrap.className = "hurra-msg bot";
+  wrap.style.background = "transparent";
+  wrap.style.border = "none";
+  wrap.style.padding = "0";
+  wrap.style.marginTop = "6px";
+  wrap.style.maxWidth = "100%";
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.className = "hurra-payment-btn";
+  a.textContent = "💳 Ödeme Yap";
+
+  wrap.appendChild(a);
+  messagesDiv.appendChild(wrap);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+
+
+  function showTyping() {
+    return addMessage("Yazıyor...", "bot typing");
+  }
+
+  async function sendMessage(msg) {
+    if (!msg.trim() || isLoading) return;
+    addMessage(msg, "user");
+    input.value = "";
+    isLoading = true;
+    sendBtn.disabled = true;
+    const typingEl = showTyping();
+
+    try {
+      const res = await fetch(PROXY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, sessionId: getSessionId() })
+      });
+      const data = await res.json();
+      typingEl.remove();
+      
+      let output = "";
+      if (Array.isArray(data) && data[0] && data[0].output) {
+        output = data[0].output;
+      } else if (data.output) {
+        output = data.output;
+      } else {
+        output = "Bir hata oluştu, lütfen tekrar deneyin.";
+      }
+      //addMessage(output, "bot");
+      const PAY_URL = "https://www.hurralingo.com/prices/";
+
+const hasPayLink = output && output.includes(PAY_URL);
+
+// URL’yi mesajdan kaldır (prompt URL’yi ayrı satırda verdiği için güvenli strip)
+if (hasPayLink) {
+  output = output
+    .replace(PAY_URL, "")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+// Mesaj boş kalırsa bile bir şey gösterelim
+if (output) addMessage(output, "bot");
+
+// URL varsa buton ekle
+if (hasPayLink) addPaymentButton(PAY_URL);
+
+    } catch (err) {
+      typingEl.remove();
+      addMessage("Bağlantı hatası, lütfen tekrar deneyin.", "bot");
+    }
+    isLoading = false;
+    sendBtn.disabled = false;
+    input.focus();
+  }
+
+  chatBtn.addEventListener("click", function() {
+    isOpen = !isOpen;
+    chatBox.classList.toggle("open", isOpen);
+    if (isOpen) {
+      input.focus();
+      if (messagesDiv.children.length === 0) {
+        addMessage("Merhaba! Size nasıl yardımcı olabilirim?", "bot");
+      }
+    }
+  });
+
+  closeBtn.addEventListener("click", function() {
+    isOpen = false;
+    chatBox.classList.remove("open");
+  });
+
+  sendBtn.addEventListener("click", function() {
+    sendMessage(input.value);
+  });
+
+  input.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") sendMessage(input.value);
+  });
+})();
+</script>
