@@ -1,7 +1,7 @@
 <script>
 (function () {
-  const PROXY_URL = "/inc_chat-proxy.php"; // aynı domain
-
+  //const PROXY_URL = "/inc_chat-proxy.php"; // aynı domain
+  const PROXY_URL = "https://n8n.e12.com.tr/webhook/lingo-chatbot";
   function getSessionId() {
     let sid = localStorage.getItem("hurra_sessionId");
     if (!sid) {
@@ -366,3 +366,4 @@ if (hasPayLink) addPaymentButton(PAY_URL);
   });
 })();
 </script>
+
