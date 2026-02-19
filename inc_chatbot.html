@@ -1,35 +1,5 @@
-<script>
-(function () {
-  //const PROXY_URL = "/inc_chat-proxy.php"; // aynı domain
-  const PROXY_URL = "https://n8n.e12.com.tr/webhook/lingo-chatbot";
-  function getSessionId() {
-    let sid = localStorage.getItem("hurra_sessionId");
-    if (!sid) {
-      sid = "sess_" + Math.random().toString(36).slice(2) + "_" + Date.now();
-      localStorage.setItem("hurra_sessionId", sid);
-    }
-    return sid;
-  }
 
-  async function postMessage(msg) {
-    const res = await fetch(PROXY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: msg, sessionId: getSessionId() })
-    });
-    const text = await res.text();
-    try { return JSON.parse(text); } catch { return { output: text }; }
-  }
 
-  // sende buton çalışmıyorsa sebep JS error olabilir; bunu görün diye:
-  window.hurraSend = async function(msg) {
-    console.log("Sending to", PROXY_URL);
-    const data = await postMessage(msg);
-    console.log("Response:", data);
-    return data;
-  };
-})();
-</script>
 <!-- Hurra Lingo Chatbot Widget - Bu kodu WordPress sitenize ekleyin -->
 <style>
 #hurra-chat-btn {
@@ -177,6 +147,9 @@
 }
 .hurra-payment-btn:hover { filter: brightness(0.95); }
 
+.hurra-msg ul li::marker {
+  color: #667eea;
+}
 </style>
 
 <button id="hurra-chat-btn" aria-label="Sohbet">
@@ -185,7 +158,7 @@
 
 <div id="hurra-chat-box">
   <div id="hurra-chat-header">
-    <span><span class="status"></span>Hurra Lingo Asistan</span>
+    <span><span class="status"></span><span id="hurra-header-text">Hurra Lingo Asistan</span></span>
     <button id="hurra-chat-close">&times;</button>
   </div>
   <div id="hurra-chat-messages"></div>
@@ -207,15 +180,116 @@
   const input = document.getElementById("hurra-chat-input");
   const sendBtn = document.getElementById("hurra-chat-send");
 
-chatBox.classList.add("open");
+  // URL'den dili al: ?lng=en
+function getLng() {
+  const host = location.host.toLowerCase();
 
-if (messagesDiv.children.length === 0) {
-  addMessage("Merhaba! Size nasıl yardımcı olabilirim?", "bot");
+  // hurralingo.com landing: her zaman EN UI
+  if (host.includes("hurralingo.com") && !host.includes("hurralingo.app")) return "en";
+
+  // hurralingo.app: query'e göre UI dili
+  const q = (new URLSearchParams(window.location.search).get("lng") || "").toLowerCase();
+  if (q) return q;
+
+  // query yoksa fallback
+  return "tr";
 }
+
+
+  function getDefaultLangBySite() {
+  const host = location.host.toLowerCase();
+  const path = location.pathname.toLowerCase();
+
+  // hurraturkiye.com -> TR
+  if (host.includes("hurraturkiye.com")) return "tr";
+
+  // hurralingo.com -> EN default, ama /tr ve /de özel
+  if (host.includes("hurralingo.com")) {
+    if (path.startsWith("/tr")) return "tr";
+    if (path.startsWith("/de")) return "de";
+    return "en";
+  }
+
+  // fallback
+  return "tr";
+}
+
+
+  // Metin sözlüğü
+  const i18n = {
+    tr: {
+      greeting:    "Merhaba! Size nasıl yardımcı olabilirim?",
+      placeholder: "Mesajınızı yazın...",
+      typing:      "Yazıyor...",
+      payBtn:      "💳 Ödeme Yap",
+      errorConn:   "Bağlantı hatası, lütfen tekrar deneyin.",
+      errorGen:    "Bir hata oluştu, lütfen tekrar deneyin.",
+      header:      "Hurra Lingo Asistan"
+    },
+    en: {
+      greeting:    "Hello! How can I help you?",
+      placeholder: "Type your message...",
+      typing:      "Typing...",
+      payBtn:      "💳 Make Payment",
+      errorConn:   "Connection error, please try again.",
+      errorGen:    "An error occurred, please try again.",
+      header:      "Hurra Lingo Assistant"
+    },
+    de: {
+      greeting:    "Hallo! Wie kann ich Ihnen helfen?",
+      placeholder: "Nachricht eingeben...",
+      typing:      "Schreibt...",
+      payBtn:      "💳 Zahlung vornehmen",
+      errorConn:   "Verbindungsfehler, bitte erneut versuchen.",
+      errorGen:    "Ein Fehler ist aufgetreten, bitte erneut versuchen.",
+      header:      "Hurra Lingo Assistent"
+    },
+    fr: {
+      greeting:    "Bonjour\u00a0! Comment puis-je vous aider\u00a0?",
+      placeholder: "Tapez votre message...",
+      typing:      "En train d\u2019\u00e9crire...",
+      payBtn:      "💳 Effectuer le paiement",
+      errorConn:   "Erreur de connexion, veuillez r\u00e9essayer.",
+      errorGen:    "Une erreur s\u2019est produite, veuillez r\u00e9essayer.",
+      header:      "Assistant Hurra Lingo"
+    }
+  };
+
+  function applyUiLanguage() {
+    const lng = getLng();
+    const t = i18n[lng] || i18n.tr;
+
+    // placeholder
+    input.placeholder = t.placeholder;
+
+    // header
+    const headerText = document.getElementById("hurra-header-text");
+    if (headerText) headerText.textContent = t.header;
+
+    // greeting: data-role="greeting" ile işaretlenmiş node'u güncelle
+    const greetingNode = messagesDiv.querySelector("[data-role='greeting']");
+    if (greetingNode) {
+      greetingNode.innerHTML = formatMessage(t.greeting);
+    }
+  }
+
+  // Sen otomatik açık kalsın istemişsin: bunu korudum
+  chatBox.classList.add("open");
+
+  // İlk greeting'i ekle (data-role ile işaretle)
+  if (messagesDiv.children.length === 0) {
+    const t = i18n[getLng()] || i18n.tr;
+    const greetDiv = document.createElement("div");
+    greetDiv.className = "hurra-msg bot";
+    greetDiv.setAttribute("data-role", "greeting");
+    greetDiv.innerHTML = formatMessage(t.greeting);
+    messagesDiv.appendChild(greetDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
   let isOpen = true;
   let isLoading = false;
   let paymentButtonShown = false;
-
 
   function getSessionId() {
     let sid = localStorage.getItem("hurra_sessionId");
@@ -225,34 +299,54 @@ if (messagesDiv.children.length === 0) {
     }
     return sid;
   }
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
-function formatMessage(text) {
-  if (!text) return "";
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 
-  // önce güvenli hale getir
-  text = escapeHtml(text);
+  function formatMessage(text) {
+    if (!text) return "";
 
-  // **kalın** → <strong>kalın</strong>
-  text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    text = escapeHtml(text);
 
-  // satır atlamaları
-  text = text.replace(/\n/g, "<br>");
+    // **kalın**
+    text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 
-  return text;
-}
+    // * madde satırlarını listeye çevir
+    if (text.includes("* ")) {
+      const lines = text.split("\n");
+      let inList = false;
+      let formatted = "";
 
+      lines.forEach(line => {
+        if (line.trim().startsWith("* ")) {
+          if (!inList) {
+            formatted += "<ul style='padding-left:18px; margin:6px 0;'>";
+            inList = true;
+          }
+          formatted += "<li style='margin-bottom:4px;'>" + line.trim().substring(2) + "</li>";
+        } else {
+          if (inList) {
+            formatted += "</ul>";
+            inList = false;
+          }
+          formatted += line + "<br>";
+        }
+      });
 
+      if (inList) formatted += "</ul>";
+      return formatted;
+    }
+
+    return text.replace(/\n/g, "<br>");
+  }
 
   function addMessage(text, type) {
-    
     const div = document.createElement("div");
     div.className = "hurra-msg " + type;
     div.innerHTML = formatMessage(text);
@@ -261,35 +355,36 @@ function formatMessage(text) {
     return div;
   }
 
-function addPaymentButton(url) {
-  const wrap = document.createElement("div");
-  wrap.className = "hurra-msg bot";
-  wrap.style.background = "transparent";
-  wrap.style.border = "none";
-  wrap.style.padding = "0";
-  wrap.style.marginTop = "6px";
-  wrap.style.maxWidth = "100%";
+  function addPaymentButton(url) {
+    const wrap = document.createElement("div");
+    wrap.className = "hurra-msg bot";
+    wrap.style.background = "transparent";
+    wrap.style.border = "none";
+    wrap.style.padding = "0";
+    wrap.style.marginTop = "6px";
+    wrap.style.maxWidth = "100%";
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  a.className = "hurra-payment-btn";
-  a.textContent = "💳 Ödeme Yap";
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "hurra-payment-btn";
+    const t = i18n[getLng()] || i18n.tr;
+    a.textContent = t.payBtn;
 
-  wrap.appendChild(a);
-  messagesDiv.appendChild(wrap);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
-
-
+    wrap.appendChild(a);
+    messagesDiv.appendChild(wrap);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
 
   function showTyping() {
-    return addMessage("Yazıyor...", "bot typing");
+    const t = i18n[getLng()] || i18n.tr;
+    return addMessage(t.typing, "bot typing");
   }
 
   async function sendMessage(msg) {
     if (!msg.trim() || isLoading) return;
+
     addMessage(msg, "user");
     input.value = "";
     isLoading = true;
@@ -297,45 +392,59 @@ function addPaymentButton(url) {
     const typingEl = showTyping();
 
     try {
-      const res = await fetch(PROXY_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, sessionId: getSessionId() })
-      });
+      const host = location.host.toLowerCase();
+const defaultLanguage =
+  host.includes("hurralingo.app")
+    ? (getLng() || "en")          // APP: dil seçimine göre
+    : getDefaultLangBySite();     // diğerleri: site kuralı
+
+
+
+const res = await fetch(PROXY_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    message: msg,
+    sessionId: getSessionId(),
+    defaultLanguage: defaultLanguage,
+    allowedLanguages: [defaultLanguage, "en"]
+  })
+});
+
+
       const data = await res.json();
       typingEl.remove();
-      
+
       let output = "";
       if (Array.isArray(data) && data[0] && data[0].output) {
         output = data[0].output;
       } else if (data.output) {
         output = data.output;
       } else {
-        output = "Bir hata oluştu, lütfen tekrar deneyin.";
+        const t = i18n[getLng()] || i18n.tr;
+        output = t.errorGen;
       }
-      //addMessage(output, "bot");
+
       const PAY_URL = "https://www.hurralingo.com/prices/";
+      const hasPayLink = output && output.includes(PAY_URL);
 
-const hasPayLink = output && output.includes(PAY_URL);
+      // URL’yi mesajdan kaldır
+      if (hasPayLink) {
+        output = output
+          .replace(PAY_URL, "")
+          .replace(/\n{2,}/g, "\n")
+          .trim();
+      }
 
-// URL’yi mesajdan kaldır (prompt URL’yi ayrı satırda verdiği için güvenli strip)
-if (hasPayLink) {
-  output = output
-    .replace(PAY_URL, "")
-    .replace(/\n{2,}/g, "\n")
-    .trim();
-}
-
-// Mesaj boş kalırsa bile bir şey gösterelim
-if (output) addMessage(output, "bot");
-
-// URL varsa buton ekle
-if (hasPayLink) addPaymentButton(PAY_URL);
+      if (output) addMessage(output, "bot");
+      if (hasPayLink) addPaymentButton(PAY_URL);
 
     } catch (err) {
       typingEl.remove();
-      addMessage("Bağlantı hatası, lütfen tekrar deneyin.", "bot");
+      const t = i18n[getLng()] || i18n.tr;
+      addMessage(t.errorConn, "bot");
     }
+
     isLoading = false;
     sendBtn.disabled = false;
     input.focus();
@@ -345,10 +454,8 @@ if (hasPayLink) addPaymentButton(PAY_URL);
     isOpen = !isOpen;
     chatBox.classList.toggle("open", isOpen);
     if (isOpen) {
+      applyUiLanguage();
       input.focus();
-      if (messagesDiv.children.length === 0) {
-        addMessage("Merhaba! Size nasıl yardımcı olabilirim?", "bot");
-      }
     }
   });
 
@@ -364,6 +471,8 @@ if (hasPayLink) addPaymentButton(PAY_URL);
   input.addEventListener("keypress", function(e) {
     if (e.key === "Enter") sendMessage(input.value);
   });
+
+  // Sayfa ilk açılışta UI dilini uygula
+  applyUiLanguage();
 })();
 </script>
-
