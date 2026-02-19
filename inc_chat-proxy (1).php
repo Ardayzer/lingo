@@ -1,5 +1,5 @@
 <?php
-// inc_chat-proxy.php
+// chat-proxy.php
 // Frontend'den gelen mesajı alır, n8n webhook'una iletir ve cevabı geri döndürür.
 
 header('Content-Type: application/json; charset=utf-8');
@@ -9,9 +9,9 @@ $N8N_WEBHOOK_URL = 'https://n8n.e12.com.tr/webhook/lingo-chatbot';
 $N8N_API_KEY     = 'lingo_chatbot_api_key_060320018426';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
- http_response_code(405);
- echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
- exit;
+  http_response_code(405);
+  echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
+  exit;
 }
 
 $raw = file_get_contents('php://input');
